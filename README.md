@@ -1,11 +1,11 @@
-![banner](fastlane/metadata/android/en-US/images/featureGraphic.png)
+# Video
 
-# mpvExtended
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/marlboro-advance/mpvex.svg?logo=github&label=GitHub&cacheSeconds=3600)](https://github.com/marlboro-advance/mpvex/releases/latest)
-[![GitHub all releases](https://img.shields.io/github/downloads/marlboro-advance/mpvex/total?logo=github&cacheSeconds=3600)](https://github.com/marlboro-advance/mpvex/releases/latest)
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/sumanroy-devs/video.svg?logo=github&label=GitHub&cacheSeconds=3600)](https://github.com/sumanroy-devs/video/releases/latest)
+[![GitHub all releases](https://img.shields.io/github/downloads/sumanroy-devs/video/total?logo=github&cacheSeconds=3600)](https://github.com/sumanroy-devs/video/releases/latest)
 
 
-**mpvExtended is a fork of [mpv-android](https://github.com/mpv-android/mpv-android), built on the libmpv library. It aims
+**Video is an Android video player built on the libmpv library, forked from
+[mpv-android](https://github.com/mpv-android/mpv-android). It aims
 to combine the powerful features of mpv with an easy to use interface and additional
 features.**
 
@@ -28,44 +28,7 @@ features.**
 - Custom Playlist management support
 
 **This project is still in development and is expected to have bugs. Please report any bugs you find in
-the [Issues](https://github.com/marlboro-advance/mpvEx/issues) section.**
-
----
-
-## Installation
-
-### Stable Release
-Download the latest stable version from the [GitHub releases page](https://github.com/marlboro-advance/mpvEx/releases).
-
-[![Download Release](https://img.shields.io/badge/Download-Release-blue?style=for-the-badge)](https://github.com/marlboro-advance/mpvEx/releases)
-
-Or you can get the stable releases here
-
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png" height="50" alt="Get it at IzzyOnDroid">](https://apt.izzysoft.de/packages/app.marlboroadvance.mpvex)
-
-### Preview Builds
-For testing purposes only
-
-[![Download Preview Builds](https://img.shields.io/badge/Download-Preview%20Builds-red?style=for-the-badge)](https://marlboro-advance.github.io/mpvEx/)
-
----
-
-## Showcase
-<div class="image-row" align="center">
-  <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/player.png" width="98%" />
-</div>
-
-<div class="image-row" align="center" justify-content="space-between">
-  <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/folderscreen.png" width="23.5%"/>
-  <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/videoscreen.png" width="23.5%"/>
-  <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/about.png" width="23.5%"/>
-  <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/pip.png" width="23.5%"/>
-</div>
-
-<div class="image-row" align="center">
-  <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/framenavigation.png" width="48.5%" />
-  <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/chapters.png" width="48.5%" />
-</div>
+the [Issues](https://github.com/sumanroy-devs/video/issues) section.**
 
 ---
 
@@ -76,6 +39,29 @@ For testing purposes only
 - JDK 17
 - Android SDK with build tools 34.0.0+
 - Git (for version information in builds)
+
+### Standard Build
+
+The build is flavor-less — use the plain Gradle tasks:
+
+```bash
+./gradlew assembleDebug     # debug APK
+./gradlew assembleRelease   # release APK (requires signing setup, see below)
+```
+
+### Local Release Signing
+
+Release builds need a `keystore.properties` file at the project root (gitignored):
+
+```properties
+storeFile=video.keystore
+storePassword=<store password>
+keyAlias=<key alias>
+keyPassword=<key password>
+```
+
+Local `assembleRelease` / `bundleRelease` fail fast with a clear message if this file
+is missing. CI runners are exempt — they sign with repository secrets instead (below).
 
 ### APK Variants
 
@@ -101,7 +87,7 @@ following secrets in your GitHub repository:
 3. Add the following repository secrets:
 
 | Secret Name              | Description                                          |
-|--------------------------|------------------------------------------------------|
+| ------------------------ | ---------------------------------------------------- |
 | `SIGNING_KEYSTORE`       | Base64-encoded keystore file (`.jks` or `.keystore`) |
 | `SIGNING_KEY_ALIAS`      | The alias name used when creating the keystore       |
 | `SIGNING_STORE_PASSWORD` | Password for the keystore file                       |
@@ -131,44 +117,27 @@ Copy the contents of `keystore.txt` and paste it as the value for the `SIGNING_K
 2. Commit the changes
 3. Create and push a tag:
    ```bash
-   git tag -a v1.0.0 -m "Release version 1.0.0"
-   git push origin v1.0.0
+   git tag -a v1.4.0 -m "Release version 1.4.0"
+   git push origin v1.4.0
    ```
-4. GitHub Actions will automatically build, sign, and create a draft release
+4. GitHub Actions will build all APK variants, sign them, verify the pinned signer
+   certificate, and publish the release automatically as **Video \<version\>**
 
 ### Creating a Preview Release
 
 1. Create and push a preview tag:
    ```bash
-   git tag -a v1.0.0-preview.1 -m "Preview release"
-   git push origin v1.0.0-preview.1
+   git tag -a v1.4.0-preview.1 -m "Preview release"
+   git push origin v1.4.0-preview.1
    ```
-2. GitHub Actions will create a pre-release automatically
+2. GitHub Actions will publish it as a pre-release automatically
 
 ---
 
 ## Acknowledgments
 
+- [mpvEx](https://github.com/marlboro-advance/mpvEx)
 - [mpv-android](https://github.com/mpv-android)
 - [mpvKt](https://github.com/abdallahmehiz/mpvKt)
 - [Next player](https://github.com/anilbeesetti/nextplayer)
 - [Gramophone](https://github.com/FoedusProgramme/Gramophone)
-
----
-
-## Support the Project <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Heart%20with%20Ribbon.png" alt="Heart with Ribbon" width="25" height="25" />
-
-If you find mpvExtended useful, consider supporting the development:
-
-[![UPI](https://img.shields.io/badge/UPI-aadiinarvekar@upi-blue?style=for-the-badge&logo=google-pay&logoColor=white)](upi://pay?pa=aadiinarvekar@upi)
-
----
-## Star History <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Star.png" alt="Star" width="25" height="25" />
-
-<a href="https://www.star-history.com/#marlboro-advance/mpvEx&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=marlboro-advance/mpvEx&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=marlboro-advance/mpvEx&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=marlboro-advance/mpvEx&type=date&legend=top-left" />
- </picture>
-</a>
