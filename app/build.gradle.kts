@@ -1,5 +1,6 @@
 import com.android.build.api.variant.FilterConfiguration
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
   alias(libs.plugins.android.application)
@@ -15,7 +16,7 @@ android {
   compileSdk = 37
 
   defaultConfig {
-    applicationId = "app.marlboroadvance.mpvex"
+    applicationId = "com.sroy.video"
     minSdk = 26
     targetSdk = 36
     versionCode = 130
@@ -72,6 +73,22 @@ android {
     }
   }
 
+  // Local release signing: used only when keystore.properties exists at the project root.
+  // CI is unaffected — workflows sign the APK afterwards with apksigner.
+  signingConfigs {
+    if (rootProject.file("keystore.properties").exists()) {
+      create("release") {
+        val props = Properties().apply {
+          rootProject.file("keystore.properties").inputStream().use { load(it) }
+        }
+        storeFile = rootProject.file(props.getProperty("storeFile"))
+        storePassword = props.getProperty("storePassword")
+        keyAlias = props.getProperty("keyAlias")
+        keyPassword = props.getProperty("keyPassword")
+      }
+    }
+  }
+
   buildTypes {
     named("release") {
       isMinifyEnabled = true
@@ -80,6 +97,7 @@ android {
         getDefaultProguardFile("proguard-android-optimize.txt"),
         "proguard-rules.pro"
       )
+      signingConfig = signingConfigs.findByName("release")
       ndk {
         debugSymbolLevel = "none"
       }
