@@ -243,6 +243,8 @@
   <string name="anime4k_quality_high">High</string>
   <string name="pref_check_updates_title">Check for Updates</string>
   <string name="pref_check_updates_summary">Tap to check for the latest version</string>
+  <string name="pref_developer_name">Suman Roy</string>
+  <string name="pref_developer_email">sumanroy.devs@outlook.com</string>
   <string name="player_sheets_add_ext_sub">Add external subtitles</string>
   <string name="player_sheets_add_ext_audio">Add external audio tracks</string>
   <string name="player_sheets_tracks_off">Off</string>
