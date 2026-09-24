@@ -92,7 +92,7 @@ class UpdateManager(
             return null
         }
         
-        val release = getLatestRelease("https://api.github.com/repos/sumanroy-devs/video/releases/latest")
+        val release = getLatestRelease("https://api.github.com/repos/sumanroy-devs/video/releases/latest") ?: return null
         val currentVersion = normalizeVersion(BuildConfig.VERSION_NAME)
         val remoteVersion = normalizeVersion(release.tagName)
         val prefs = context.getSharedPreferences("mpvEx_prefs", Context.MODE_PRIVATE)
@@ -122,9 +122,14 @@ class UpdateManager(
             .apply()
     }
 
-    private suspend fun getLatestRelease(url: String): Release = withContext(Dispatchers.IO) {
+    private suspend fun getLatestRelease(url: String): Release? = withContext(Dispatchers.IO) {
         val request = Request.Builder().url(url).build()
         val response = client.newCall(request).execute()
+        // 404 = no releases published yet (fresh repo) — not a connection problem
+        if (response.code == 404) {
+            response.close()
+            return@withContext null
+        }
         if (!response.isSuccessful) throw IOException("Unexpected code $response")
 
         val responseBody = response.body.string()
