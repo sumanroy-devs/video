@@ -1,5 +1,7 @@
 package app.marlboroadvance.mpvex.ui.preferences
 
+import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,12 +18,13 @@ import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Gesture
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Subtitles
+import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,14 +34,22 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import app.marlboroadvance.mpvex.BuildConfig
 import app.marlboroadvance.mpvex.R
 import app.marlboroadvance.mpvex.presentation.Screen
 import app.marlboroadvance.mpvex.ui.utils.LocalBackStack
+import app.marlboroadvance.mpvex.utils.update.UpdateViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
@@ -49,6 +60,31 @@ object PreferencesScreen : Screen {
   @Composable
   override fun Content() {
     val backstack = LocalBackStack.current
+    val context = LocalContext.current
+
+    // Activity-scoped: same instance as the UpdateDialog hosted in MainActivity
+    val updateViewModel: UpdateViewModel? = if (BuildConfig.ENABLE_UPDATE_FEATURE) {
+      viewModel(context as ComponentActivity)
+    } else {
+      null
+    }
+    val updateState by (updateViewModel?.updateState ?: MutableStateFlow(UpdateViewModel.UpdateState.Idle)).collectAsState()
+    val isCheckingUpdate = updateState is UpdateViewModel.UpdateState.Loading
+
+    // Manual check results → native toasts (update dialog itself is hosted in MainActivity)
+    LaunchedEffect(updateState) {
+      when (updateState) {
+        is UpdateViewModel.UpdateState.NoUpdate -> {
+          Toast.makeText(context, "Already using latest version", Toast.LENGTH_SHORT).show()
+          updateViewModel?.dismissNoUpdate()
+        }
+        is UpdateViewModel.UpdateState.Error -> {
+          Toast.makeText(context, "Couldn't check for updates. Check your connection.", Toast.LENGTH_SHORT).show()
+        }
+        else -> {}
+      }
+    }
+
     Scaffold(
       topBar = {
         TopAppBar(
@@ -308,7 +344,7 @@ object PreferencesScreen : Screen {
           
           // Advanced & About Section
           item {
-            PreferenceSectionHeader(title = "Advanced & About")
+            PreferenceSectionHeader(title = "Advanced & Updates")
           }
           
           item {
@@ -333,24 +369,24 @@ object PreferencesScreen : Screen {
               )
               
               PreferenceDivider()
-              
+
               Preference(
 
-                title = { Text(text = stringResource(id = R.string.pref_about_title)) },
-                summary = { 
+                title = { Text(text = stringResource(id = R.string.pref_check_updates_title)) },
+                summary = {
                   Text(
-                    text = stringResource(id = R.string.pref_about_summary),
+                    text = if (isCheckingUpdate) "Checking for updates…" else stringResource(id = R.string.pref_check_updates_summary),
                     color = MaterialTheme.colorScheme.outline
-                  ) 
+                  )
                 },
-                icon = { 
+                icon = {
                   Icon(
-                    Icons.Outlined.Info, 
+                    if (isCheckingUpdate) Icons.Outlined.Sync else Icons.Outlined.Update,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
-                  ) 
+                  )
                 },
-                onClick = { backstack.add(AboutScreen) },
+                onClick = { updateViewModel?.checkForUpdate(manual = true) },
               )
             }
           }

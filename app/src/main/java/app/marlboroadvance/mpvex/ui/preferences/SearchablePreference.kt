@@ -579,13 +579,13 @@ object SearchablePreferences {
                 screen = AdvancedPreferencesScreen,
             ))
 
-            // About
+            // Updates
             add(SearchablePreference(
-                titleRes = R.string.pref_about_title,
-                summaryRes = R.string.pref_about_summary,
-                keywords = listOf("about", "version", "licenses", "acknowledgments", "info", "app"),
-                category = "About",
-                screen = AboutScreen,
+                titleRes = R.string.pref_check_updates_title,
+                summaryRes = R.string.pref_check_updates_summary,
+                keywords = listOf("update", "updates", "check", "upgrade", "version", "latest", "release", "github"),
+                category = "Updates",
+                screen = PreferencesScreen,
             ))
         }
     }
