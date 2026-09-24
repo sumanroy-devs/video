@@ -2,6 +2,7 @@ package app.marlboroadvance.mpvex.utils.update
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -61,7 +62,8 @@ data class Release(
     @SerialName("name") val name: String,
     @SerialName("body") val body: String,
     @SerialName("published_at") val publishedAt: String,
-    @SerialName("assets") val assets: List<Asset>
+    @SerialName("assets") val assets: List<Asset>,
+    @SerialName("html_url") val htmlUrl: String = ""
 )
 
 @Serializable
@@ -77,6 +79,10 @@ data class Asset(
 class UpdateManager(
     private val context: Context
 ) {
+    companion object {
+        const val RELEASE_PAGE_URL = "https://github.com/sumanroy-devs/video/releases/latest"
+    }
+
     private val client = OkHttpClient()
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -87,8 +93,8 @@ class UpdateManager(
         }
         
         val release = getLatestRelease("https://api.github.com/repos/sumanroy-devs/video/releases/latest")
-        val currentVersion = BuildConfig.VERSION_NAME.replace("-dev", "")
-        val remoteVersion = release.tagName.removePrefix("v")
+        val currentVersion = normalizeVersion(BuildConfig.VERSION_NAME)
+        val remoteVersion = normalizeVersion(release.tagName)
         val prefs = context.getSharedPreferences("mpvEx_prefs", Context.MODE_PRIVATE)
         val ignoredVersion = prefs.getString("ignored_version", null)
 
@@ -112,7 +118,7 @@ class UpdateManager(
         
         val prefs = context.getSharedPreferences("mpvEx_prefs", Context.MODE_PRIVATE)
         prefs.edit()
-            .putString("ignored_version", version)
+            .putString("ignored_version", normalizeVersion(version))
             .apply()
     }
 
@@ -127,8 +133,8 @@ class UpdateManager(
     }
 
     private fun isNewerVersion(remote: String, current: String): Boolean {
-        val rParts = remote.split(".").map { it.toIntOrNull() ?: 0 }
-        val cParts = current.split(".").map { it.toIntOrNull() ?: 0 }
+        val rParts = normalizeVersion(remote).split(".").map { it.toIntOrNull() ?: 0 }
+        val cParts = normalizeVersion(current).split(".").map { it.toIntOrNull() ?: 0 }
         
         for (i in 0 until maxOf(rParts.size, cParts.size)) {
             val r = rParts.getOrElse(i) { 0 }
@@ -138,6 +144,23 @@ class UpdateManager(
         }
         return false
     }
+
+    /**
+     * Strips flavor/prerelease suffixes so "1.3.0-playstore", "1.3.0-fdroid",
+     * "1.3.0-preview.1" and "v1.3.0" all compare as plain "1.3.0" (ported from MyTube).
+     */
+    private fun normalizeVersion(version: String): String =
+        version.trim().removePrefix("v").substringBefore('-')
+
+    /** True when at least one release asset can be installed on this device. */
+    fun hasCompatibleApk(release: Release): Boolean = selectBestApkAsset(release.assets) != null
+
+    /**
+     * Release page URL — fallback when the release has no compatible APK asset,
+     * so the update flow never dead-ends (ported from MyTube).
+     */
+    fun getReleasePageUrl(release: Release): String =
+        release.htmlUrl.ifBlank { RELEASE_PAGE_URL }
 
     fun downloadUpdate(release: Release): Flow<Float> {
         // Return completed flow immediately if update feature is disabled
@@ -340,7 +363,19 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
         if (!BuildConfig.ENABLE_UPDATE_FEATURE) {
             return
         }
-        
+
+        // No APK asset matches this device → fall back to the release page in the browser
+        if (!updateManager.hasCompatibleApk(release)) {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse(updateManager.getReleasePageUrl(release))
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            getApplication<Application>().startActivity(intent)
+            return
+        }
+
         viewModelScope.launch {
             _isDownloading.value = true
             try {
@@ -441,6 +476,21 @@ fun UpdateDialog(
                     InfoRow(label = "Latest Version", value = release.tagName.removePrefix("v"))
                     InfoRow(label = "Release Date", value = formattedDate)
                     InfoRow(label = "Size", value = formatFileSize(downloadSize))
+                }
+
+                if (release.body.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "What's New",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = release.body.trim(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 if (isDownloading) {

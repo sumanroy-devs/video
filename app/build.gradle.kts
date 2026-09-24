@@ -240,6 +240,7 @@ dependencies {
   implementation(libs.nanohttpd)
   implementation(libs.lazycolumnscrollbar)
   implementation(libs.reorderable)
+  implementation(libs.androidx.work.runtime.ktx)
 }
 
 /* ---------------- Git helpers ---------------- */

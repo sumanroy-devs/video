@@ -391,6 +391,10 @@
   <!-- Notification strings -->
   <string name="notification_channel_name">Media Playback</string>
   <string name="notification_channel_description">Media playback controls</string>
+  <string name="notification_channel_updates_name">Updates</string>
+  <string name="notification_channel_updates_description">New app update notifications</string>
+  <string name="notification_update_available">Update available: %1$s</string>
+  <string name="notification_tap_to_update">Tap to view details and install</string>
   <string name="notification_playing">Playing</string>
   <!-- Media Info Activity -->
   <string name="pref_player_use_precise_seeking">Use precise seeking</string>

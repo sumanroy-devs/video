@@ -1,8 +1,12 @@
 package app.marlboroadvance.mpvex
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,6 +31,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
@@ -37,6 +42,7 @@ import app.marlboroadvance.mpvex.preferences.preference.collectAsState
 import app.marlboroadvance.mpvex.presentation.Screen
 import app.marlboroadvance.mpvex.repository.NetworkRepository
 import app.marlboroadvance.mpvex.utils.update.UpdateDialog
+import app.marlboroadvance.mpvex.utils.update.UpdateNotification
 import app.marlboroadvance.mpvex.utils.update.UpdateViewModel
 import app.marlboroadvance.mpvex.ui.browser.MainScreen
 import app.marlboroadvance.mpvex.ui.theme.DarkMode
@@ -90,6 +96,24 @@ class MainActivity : ComponentActivity() {
       // Auto-connect to saved network connections
       LaunchedEffect(Unit) {
         autoConnectToNetworks()
+      }
+
+      // Request notification permission for Android 13+ (update notifications)
+      if (BuildConfig.ENABLE_UPDATE_FEATURE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val notifPermissionLauncher = rememberLauncherForActivityResult(
+          ActivityResultContracts.RequestPermission()
+        ) { granted ->
+          Log.d("MainActivity", "Notification permission granted: $granted")
+        }
+        LaunchedEffect(Unit) {
+          if (ContextCompat.checkSelfPermission(
+              this@MainActivity,
+              Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+          ) {
+            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+          }
+        }
       }
 
       MpvexTheme {
@@ -165,6 +189,15 @@ class MainActivity : ComponentActivity() {
     val updateState by (updateViewModel?.updateState ?: MutableStateFlow(UpdateViewModel.UpdateState.Idle)).collectAsState()
     val isDownloading by (updateViewModel?.isDownloading ?: MutableStateFlow(false)).collectAsState()
     val downloadProgress by (updateViewModel?.downloadProgress ?: MutableStateFlow(0f)).collectAsState()
+
+    // Launched from the update notification → run a check so the update dialog opens
+    LaunchedEffect(Unit) {
+      val activity = context as? ComponentActivity
+      if (activity != null && activity.intent.hasExtra(UpdateNotification.EXTRA_UPDATE_VERSION)) {
+        activity.intent.removeExtra(UpdateNotification.EXTRA_UPDATE_VERSION)
+        updateViewModel?.checkForUpdate(manual = false)
+      }
+    }
 
     // Provide both LocalBackStack and the LazyList/Grid states to all screens
     CompositionLocalProvider(

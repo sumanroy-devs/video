@@ -8,6 +8,8 @@ import app.marlboroadvance.mpvex.di.PreferencesModule
 import app.marlboroadvance.mpvex.presentation.crash.CrashActivity
 import app.marlboroadvance.mpvex.presentation.crash.GlobalExceptionHandler
 import app.marlboroadvance.mpvex.utils.media.MediaLibraryEvents
+import app.marlboroadvance.mpvex.utils.update.UpdateCheckWorker
+import app.marlboroadvance.mpvex.utils.update.UpdateNotification
 import `is`.xyz.mpv.FastThumbnails
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +54,16 @@ class App : Application() {
     applicationScope.launch {
       runCatching {
         triggerMediaScanOnLaunch()
+      }
+    }
+
+    // Schedule periodic update checks (every 12 hours) — standard flavor only
+    if (BuildConfig.ENABLE_UPDATE_FEATURE) {
+      UpdateNotification.createChannel(this)
+      applicationScope.launch {
+        runCatching {
+          UpdateCheckWorker.schedulePeriodicCheck(this@App)
+        }
       }
     }
   }
