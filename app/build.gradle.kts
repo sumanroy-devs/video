@@ -28,35 +28,10 @@ android {
 
     buildConfigField("String", "GIT_SHA", "\"${getCommitSha()}\"")
     buildConfigField("int", "GIT_COUNT", getCommitCount())
-  }
 
-  flavorDimensions += "distribution"
-
-  productFlavors {
-    create("standard") {
-      dimension = "distribution"
-      isDefault = true
-      buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "true")
-      buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
-    }
-
-    create("playstore") {
-      dimension = "distribution"
-      versionNameSuffix = "-playstore"
-      buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "false")
-      buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "true")
-    }
-
-    create("fdroid") {
-      dimension = "distribution"
-      versionNameSuffix = "-fdroid"
-      buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "false")
-      buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
-
-      ndk {
-        abiFilters += "arm64-v8a"
-      }
-    }
+    // GitHub is the single distribution channel (old "standard" flavor flags).
+    buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "true")
+    buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
   }
 
   dependenciesInfo {
@@ -144,6 +119,21 @@ android {
   @Suppress("UnstableApiUsage")
   androidResources {
     generateLocaleConfig = true
+  }
+}
+
+// A release APK must always be signed: block local release packaging when
+// keystore.properties is missing. CI runners are exempt — their workflows
+// sign the built APKs afterwards with apksigner.
+tasks.matching { it.name == "packageRelease" || it.name == "bundleRelease" }.configureEach {
+  doFirst {
+    if (!rootProject.file("keystore.properties").exists() && System.getenv("CI") == null) {
+      throw GradleException(
+        "Unsigned release build blocked: keystore.properties is missing at the project root. " +
+          "Create it (see README) so release APKs are signed with video.keystore, " +
+          "or build assembleDebug instead."
+      )
+    }
   }
 }
 
