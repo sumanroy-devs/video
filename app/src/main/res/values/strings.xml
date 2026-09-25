@@ -243,6 +243,9 @@
   <string name="anime4k_quality_high">High</string>
   <string name="pref_check_updates_title">Check for Updates</string>
   <string name="pref_check_updates_summary">Tap to check for the latest version</string>
+  <string name="pref_check_updates_checking">Checking for updates…</string>
+  <string name="pref_auto_update_title">Automatic update checks</string>
+  <string name="pref_auto_update_summary">Silently check for a new version when Video opens</string>
   <string name="pref_developer_name">Suman Roy</string>
   <string name="pref_developer_email">sumanroy.devs@outlook.com</string>
   <string name="player_sheets_add_ext_sub">Add external subtitles</string>
@@ -386,6 +389,22 @@
   <string name="notification_channel_updates_name">Updates</string>
   <string name="notification_channel_updates_description">New app update notifications</string>
   <string name="notification_update_available">Update available: %1$s</string>
+  <string name="update_dialog_title_available">Update Available</string>
+  <string name="update_dialog_title_install">Ready to Install</string>
+  <string name="update_dialog_current_version">Current Version</string>
+  <string name="update_dialog_latest_version">Latest Version</string>
+  <string name="update_dialog_release_date">Release Date</string>
+  <string name="update_dialog_size">Size</string>
+  <string name="update_dialog_whats_new">What\'s New</string>
+  <string name="update_dialog_downloading">Downloading...</string>
+  <string name="update_dialog_download">Download</string>
+  <string name="update_dialog_install">Install</string>
+  <string name="update_dialog_ignore">Ignore</string>
+  <string name="update_dialog_cancel">Cancel</string>
+  <string name="update_dialog_unknown_size">Unknown size</string>
+  <string name="toast_update_already_latest">Already using latest version</string>
+  <string name="toast_update_unavailable">Updates are not available in this build</string>
+  <string name="toast_update_check_failed">Couldn\'t check for updates. Check your connection.</string>
   <string name="notification_tap_to_update">Tap to view details and install</string>
   <string name="notification_playing">Playing</string>
   <!-- Media Info Activity -->

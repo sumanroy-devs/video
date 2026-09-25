@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ViewQuilt
 import androidx.compose.material.icons.outlined.Audiotrack
+import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Gesture
@@ -51,11 +52,13 @@ import app.marlboroadvance.mpvex.BuildConfig
 import app.marlboroadvance.mpvex.R
 import app.marlboroadvance.mpvex.presentation.Screen
 import app.marlboroadvance.mpvex.ui.utils.LocalBackStack
+import app.marlboroadvance.mpvex.utils.update.UpdateManager
 import app.marlboroadvance.mpvex.utils.update.UpdateViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
+import me.zhanghai.compose.preference.SwitchPreference
 
 @Serializable
 object PreferencesScreen : Screen {
@@ -73,16 +76,22 @@ object PreferencesScreen : Screen {
     }
     val updateState by (updateViewModel?.updateState ?: MutableStateFlow(UpdateViewModel.UpdateState.Idle)).collectAsState()
     val isCheckingUpdate = updateState is UpdateViewModel.UpdateState.Loading
+    val autoUpdateEnabled by (updateViewModel?.isAutoUpdateEnabled ?: MutableStateFlow(false)).collectAsState()
 
     // Manual check results → native toasts (update dialog itself is hosted in MainActivity)
     LaunchedEffect(updateState) {
       when (updateState) {
         is UpdateViewModel.UpdateState.NoUpdate -> {
-          Toast.makeText(context, "Already using latest version", Toast.LENGTH_SHORT).show()
+          val messageRes = if (UpdateManager.isUpdateActive) {
+            R.string.toast_update_already_latest
+          } else {
+            R.string.toast_update_unavailable
+          }
+          Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
           updateViewModel?.dismissNoUpdate()
         }
         is UpdateViewModel.UpdateState.Error -> {
-          Toast.makeText(context, "Couldn't check for updates. Check your connection.", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, context.getString(R.string.toast_update_check_failed), Toast.LENGTH_SHORT).show()
         }
         else -> {}
       }
@@ -378,7 +387,7 @@ object PreferencesScreen : Screen {
                 title = { Text(text = stringResource(id = R.string.pref_check_updates_title)) },
                 summary = {
                   Text(
-                    text = if (isCheckingUpdate) "Checking for updates…" else stringResource(id = R.string.pref_check_updates_summary),
+                    text = if (isCheckingUpdate) stringResource(id = R.string.pref_check_updates_checking) else stringResource(id = R.string.pref_check_updates_summary),
                     color = MaterialTheme.colorScheme.outline
                   )
                 },
@@ -390,6 +399,27 @@ object PreferencesScreen : Screen {
                   )
                 },
                 onClick = { updateViewModel?.checkForUpdate(manual = true) },
+              )
+
+              PreferenceDivider()
+
+              SwitchPreference(
+                value = autoUpdateEnabled,
+                onValueChange = { updateViewModel?.toggleAutoUpdate(it) },
+                title = { Text(text = stringResource(id = R.string.pref_auto_update_title)) },
+                icon = {
+                  Icon(
+                    Icons.Outlined.CloudSync,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                  )
+                },
+                summary = {
+                  Text(
+                    text = stringResource(id = R.string.pref_auto_update_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
               )
             }
           }

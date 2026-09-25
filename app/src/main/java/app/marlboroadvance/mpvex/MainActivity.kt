@@ -1,6 +1,7 @@
 package app.marlboroadvance.mpvex
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -26,6 +27,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.toArgb
@@ -42,6 +44,7 @@ import app.marlboroadvance.mpvex.preferences.preference.collectAsState
 import app.marlboroadvance.mpvex.presentation.Screen
 import app.marlboroadvance.mpvex.repository.NetworkRepository
 import app.marlboroadvance.mpvex.utils.update.UpdateDialog
+import app.marlboroadvance.mpvex.utils.update.UpdateManager
 import app.marlboroadvance.mpvex.utils.update.UpdateNotification
 import app.marlboroadvance.mpvex.utils.update.UpdateViewModel
 import app.marlboroadvance.mpvex.ui.browser.MainScreen
@@ -66,11 +69,22 @@ class MainActivity : ComponentActivity() {
   // Create a coroutine scope tied to the activity lifecycle
   private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+  // Bumped from onNewIntent: launchMode="singleTask" reuses this instance when the update
+  // notification is tapped while the app is alive, so the check must be keyed on this tick
+  // instead of running only on first composition.
+  private val updateIntentTick = mutableIntStateOf(0)
+
   // Register the ActivityResultLauncher at class level
   private val mediaAccessLauncher = registerForActivityResult(
     ActivityResultContracts.StartIntentSenderForResult()
   ) { result ->
     PermissionUtils.handleMediaAccessResult(result.resultCode)
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+    updateIntentTick.intValue++
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,7 +113,7 @@ class MainActivity : ComponentActivity() {
       }
 
       // Request notification permission for Android 13+ (update notifications)
-      if (BuildConfig.ENABLE_UPDATE_FEATURE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      if (UpdateManager.isUpdateActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val notifPermissionLauncher = rememberLauncherForActivityResult(
           ActivityResultContracts.RequestPermission()
         ) { granted ->
@@ -190,8 +204,10 @@ class MainActivity : ComponentActivity() {
     val isDownloading by (updateViewModel?.isDownloading ?: MutableStateFlow(false)).collectAsState()
     val downloadProgress by (updateViewModel?.downloadProgress ?: MutableStateFlow(0f)).collectAsState()
 
-    // Launched from the update notification → run a check so the update dialog opens
-    LaunchedEffect(Unit) {
+    // Launched from the update notification → run a check so the update dialog opens.
+    // Keyed on the intent tick: singleTask reuses this activity, so a tap while the app is
+    // already alive arrives via onNewIntent rather than a fresh composition.
+    LaunchedEffect(updateIntentTick.intValue) {
       val activity = context as? ComponentActivity
       if (activity != null && activity.intent.hasExtra(UpdateNotification.EXTRA_UPDATE_VERSION)) {
         activity.intent.removeExtra(UpdateNotification.EXTRA_UPDATE_VERSION)
@@ -253,7 +269,7 @@ class MainActivity : ComponentActivity() {
               release = release,
               isDownloading = isDownloading,
               progress = downloadProgress,
-              actionLabel = if (isDownloading) "Downloading..." else "Download",
+              readyToInstall = false,
               currentVersion = currentVersion,
               onDismiss = { updateViewModel.dismiss() },
               onAction = { updateViewModel.downloadUpdate(release) },
@@ -266,7 +282,7 @@ class MainActivity : ComponentActivity() {
               release = release,
               isDownloading = isDownloading,
               progress = downloadProgress,
-              actionLabel = "Install",
+              readyToInstall = true,
               currentVersion = currentVersion,
               onDismiss = { updateViewModel.dismiss() },
               onAction = { updateViewModel.installUpdate(release) },

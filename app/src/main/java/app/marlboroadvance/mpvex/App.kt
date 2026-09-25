@@ -9,6 +9,7 @@ import app.marlboroadvance.mpvex.presentation.crash.CrashActivity
 import app.marlboroadvance.mpvex.presentation.crash.GlobalExceptionHandler
 import app.marlboroadvance.mpvex.utils.media.MediaLibraryEvents
 import app.marlboroadvance.mpvex.utils.update.UpdateCheckWorker
+import app.marlboroadvance.mpvex.utils.update.UpdateManager
 import app.marlboroadvance.mpvex.utils.update.UpdateNotification
 import `is`.xyz.mpv.FastThumbnails
 import kotlinx.coroutines.CoroutineScope
@@ -57,8 +58,8 @@ class App : Application() {
       }
     }
 
-    // Schedule periodic update checks (every 12 hours) — standard flavor only
-    if (BuildConfig.ENABLE_UPDATE_FEATURE) {
+    // Schedule periodic update checks (every 12 hours) — only builds that can update in place
+    if (UpdateManager.isUpdateActive) {
       UpdateNotification.createChannel(this)
       applicationScope.launch {
         runCatching {

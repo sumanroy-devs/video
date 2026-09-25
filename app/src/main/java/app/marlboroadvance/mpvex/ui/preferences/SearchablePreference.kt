@@ -587,6 +587,13 @@ object SearchablePreferences {
                 category = "Updates",
                 screen = PreferencesScreen,
             ))
+            add(SearchablePreference(
+                titleRes = R.string.pref_auto_update_title,
+                summaryRes = R.string.pref_auto_update_summary,
+                keywords = listOf("auto", "automatic", "background", "silent", "silent check"),
+                category = "Updates",
+                screen = PreferencesScreen,
+            ))
         }
     }
 

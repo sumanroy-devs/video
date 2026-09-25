@@ -18,8 +18,9 @@
     <external-cache-path
         name="external_cache"
         path="." />
-    <!-- Allow sharing files from removable media (SD cards, USB OTG mounted at /mnt/media_rw/) -->
+    <!-- Removable media (SD cards, USB OTG) appear under /storage/XXXX-XXXX; scoped to
+         /storage so app-private (/data) and system files are never shareable. -->
     <root-path
         name="root_path"
-        path="." />
+        path="storage/" />
 </paths>

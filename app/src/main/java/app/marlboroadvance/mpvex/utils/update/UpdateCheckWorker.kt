@@ -30,8 +30,8 @@ class UpdateCheckWorker(
         private const val COOLDOWN_HOURS = 12L
 
         fun schedulePeriodicCheck(context: Context, reschedule: Boolean = false) {
-            // No-op if update feature is disabled (playstore/fdroid flavors)
-            if (!BuildConfig.ENABLE_UPDATE_FEATURE) {
+            // No-op when self-update can't apply to this build/package
+            if (!UpdateManager.isUpdateActive) {
                 return
             }
 
@@ -64,12 +64,12 @@ class UpdateCheckWorker(
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        if (!BuildConfig.ENABLE_UPDATE_FEATURE) {
+        if (!UpdateManager.isUpdateActive) {
             return@withContext Result.success()
         }
 
         // Never run background checks from debug builds (matches MyTube)
-        if (BuildConfig.DEBUG && !isForcedCheck()) {
+        if (BuildConfig.DEBUG) {
             Log.d(TAG, "Skipping background update check in DEBUG mode")
             return@withContext Result.success()
         }
@@ -79,7 +79,7 @@ class UpdateCheckWorker(
             val lastCheck = prefs.getLong("last_update_check", 0L)
             val currentTime = System.currentTimeMillis()
 
-            if (currentTime - lastCheck < TimeUnit.HOURS.toMillis(COOLDOWN_HOURS) && !isForcedCheck()) {
+            if (currentTime - lastCheck < TimeUnit.HOURS.toMillis(COOLDOWN_HOURS)) {
                 Log.d(TAG, "Skipping check due to cooldown")
                 return@withContext Result.success()
             }
@@ -102,6 +102,4 @@ class UpdateCheckWorker(
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
     }
-
-    private fun isForcedCheck(): Boolean = inputData.getBoolean("force", false)
 }

@@ -8,7 +8,6 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import app.marlboroadvance.mpvex.BuildConfig
 import app.marlboroadvance.mpvex.MainActivity
 import app.marlboroadvance.mpvex.R
 
@@ -21,12 +20,10 @@ import app.marlboroadvance.mpvex.R
 object UpdateNotification {
     const val CHANNEL_ID = "mpvex_update_channel"
     const val EXTRA_UPDATE_VERSION = "EXTRA_UPDATE_VERSION"
-    const val EXTRA_UPDATE_CHANGELOG = "EXTRA_UPDATE_CHANGELOG"
-    const val EXTRA_UPDATE_URL = "EXTRA_UPDATE_URL"
     private const val NOTIFICATION_ID = 9999
 
     fun createChannel(context: Context) {
-        if (!BuildConfig.ENABLE_UPDATE_FEATURE) {
+        if (!UpdateManager.isUpdateActive) {
             return
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -44,7 +41,7 @@ object UpdateNotification {
     }
 
     fun show(context: Context, release: Release) {
-        if (!BuildConfig.ENABLE_UPDATE_FEATURE) {
+        if (!UpdateManager.isUpdateActive) {
             return
         }
         createChannel(context)
@@ -56,8 +53,6 @@ object UpdateNotification {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(EXTRA_UPDATE_VERSION, release.tagName)
-            putExtra(EXTRA_UPDATE_CHANGELOG, release.body)
-            putExtra(EXTRA_UPDATE_URL, release.htmlUrl)
         }
         val pendingIntent = PendingIntent.getActivity(
             context,

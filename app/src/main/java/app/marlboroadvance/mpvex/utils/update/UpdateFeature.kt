@@ -27,11 +27,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.marlboroadvance.mpvex.BuildConfig
+import app.marlboroadvance.mpvex.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,7 +62,7 @@ import java.util.TimeZone
 data class Release(
     @SerialName("tag_name") val tagName: String,
     @SerialName("name") val name: String,
-    @SerialName("body") val body: String,
+    @SerialName("body") val body: String = "",
     @SerialName("published_at") val publishedAt: String,
     @SerialName("assets") val assets: List<Asset>,
     @SerialName("html_url") val htmlUrl: String = ""
@@ -81,14 +83,27 @@ class UpdateManager(
 ) {
     companion object {
         const val RELEASE_PAGE_URL = "https://github.com/sumanroy-devs/video/releases/latest"
+
+        /**
+         * True only for the shipped release package: .debug installs carry a
+         * different applicationId, so a release APK would land as a separate app instead
+         * of updating this one.
+         */
+        val isUpdateActive: Boolean
+            get() = BuildConfig.ENABLE_UPDATE_FEATURE &&
+                BuildConfig.APPLICATION_ID == BuildConfig.RELEASE_APPLICATION_ID
     }
 
     private val client = OkHttpClient()
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        // GitHub may send null for empty release fields (e.g. "body")
+        coerceInputValues = true
+    }
 
     suspend fun checkForUpdate(forceShow: Boolean = false): Release? {
-        // Return null immediately if update feature is disabled (F-Droid flavor)
-        if (!BuildConfig.ENABLE_UPDATE_FEATURE) {
+        // Disabled builds or packages that can't update in place never see a release
+        if (!isUpdateActive) {
             return null
         }
         
@@ -175,9 +190,9 @@ class UpdateManager(
         
         val asset = selectBestApkAsset(release.assets)
             ?: throw Exception("No compatible APK asset found")
-        
+
         val destination = File(context.externalCacheDir, asset.name)
-        return downloadApk(asset.downloadUrl, destination)
+        return downloadApk(asset.downloadUrl, destination, asset.size)
     }
 
     private fun selectBestApkAsset(assets: List<Asset>): Asset? {
@@ -185,25 +200,33 @@ class UpdateManager(
         
         // First, try to find architecture-specific APK
         val archSpecificApk = assets.firstOrNull { asset ->
-            asset.name.endsWith(".apk") && asset.name.contains(deviceArch, ignoreCase = true)
+            asset.name.endsWith(".apk") && nameMatchesArch(asset.name, deviceArch)
         }
-        
+
         if (archSpecificApk != null) {
             return archSpecificApk
         }
-        
+
         // Fallback to universal APK
         val universalApk = assets.firstOrNull { asset ->
-            asset.name.endsWith(".apk") && asset.name.contains("universal", ignoreCase = true)
+            asset.name.endsWith(".apk") && nameMatchesArch(asset.name, "universal")
         }
-        
+
         if (universalApk != null) {
             return universalApk
         }
-        
+
         // Last resort: any APK
         return assets.firstOrNull { it.name.endsWith(".apk") }
     }
+
+    /**
+     * Matches an asset name against an ABI with token boundaries so "x86" never
+     * matches an "x86_64" APK ("video-x86_64-v1.3.0.apk" must not be picked for x86).
+     */
+    private fun nameMatchesArch(assetName: String, arch: String): Boolean =
+        Regex("(^|[-.])${Regex.escape(arch)}([-.]|$)", RegexOption.IGNORE_CASE)
+            .containsMatchIn(assetName)
 
     private fun getDeviceArchitecture(): String {
         // Get the primary ABI (Application Binary Interface)
@@ -224,20 +247,26 @@ class UpdateManager(
         }
     }
 
-    private fun downloadApk(url: String, destination: File): Flow<Float> = flow {
+    private fun downloadApk(url: String, destination: File, expectedSize: Long): Flow<Float> = flow {
         val request = Request.Builder().url(url).build()
         val response = client.newCall(request).execute()
-        if (!response.isSuccessful) throw IOException("Unexpected code $response")
+        if (!response.isSuccessful) {
+            response.close()
+            throw IOException("Unexpected code $response")
+        }
 
         val body = response.body
         val contentLength = body.contentLength()
+        // Stream into a side file so an interrupted download never leaves a truncated
+        // APK at the final path where getApkFile() would offer it as ready to install.
+        val partFile = File(destination.parentFile, "${destination.name}.part")
         val inputStream = body.byteStream()
-        val outputStream = FileOutputStream(destination)
+        val outputStream = FileOutputStream(partFile)
+        var totalBytesRead: Long = 0
 
         try {
             val buffer = ByteArray(8 * 1024)
             var bytesRead: Int
-            var totalBytesRead: Long = 0
 
             while (inputStream.read(buffer).also { bytesRead = it } != -1) {
                 outputStream.write(buffer, 0, bytesRead)
@@ -250,11 +279,20 @@ class UpdateManager(
                 emit(progress)
             }
             outputStream.flush()
-            emit(100f) 
         } finally {
             inputStream.close()
             outputStream.close()
         }
+
+        if (expectedSize > 0 && totalBytesRead != expectedSize) {
+            partFile.delete()
+            throw IOException("Incomplete download: got $totalBytesRead of $expectedSize bytes")
+        }
+        if (!partFile.renameTo(destination)) {
+            partFile.delete()
+            throw IOException("Could not move downloaded file into place")
+        }
+        emit(100f) 
     }.flowOn(Dispatchers.IO)
     
     fun getApkFile(release: Release): File? {
@@ -265,7 +303,13 @@ class UpdateManager(
         
         val asset = selectBestApkAsset(release.assets) ?: return null
         val file = File(context.externalCacheDir, asset.name)
-        return if (file.exists()) file else null
+        if (!file.exists()) return null
+        // Truncated leftovers (interrupted download, older versions) are not installable
+        if (asset.size > 0 && file.length() != asset.size) {
+            file.delete()
+            return null
+        }
+        return file
     }
 
     fun clearCache() {
@@ -274,9 +318,9 @@ class UpdateManager(
             return
         }
         
-         context.externalCacheDir?.listFiles()?.forEach { 
-             if (it.name.endsWith(".apk")) it.delete()
-         }
+        context.externalCacheDir?.listFiles()?.forEach {
+            if (it.name.endsWith(".apk") || it.name.endsWith(".apk.part")) it.delete()
+        }
     }
 }
 
@@ -437,7 +481,7 @@ fun UpdateDialog(
     release: Release,
     isDownloading: Boolean,
     progress: Float,
-    actionLabel: String,
+    readyToInstall: Boolean,
     currentVersion: String,
     onDismiss: () -> Unit,
     onAction: () -> Unit,
@@ -450,7 +494,7 @@ fun UpdateDialog(
         onDismissRequest = onDismiss,
         icon = {
             Icon(
-                imageVector = if (actionLabel == "Install") Icons.Filled.SystemUpdate else Icons.Filled.CloudDownload,
+                imageVector = if (readyToInstall) Icons.Filled.SystemUpdate else Icons.Filled.CloudDownload,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp)
             )
@@ -458,7 +502,11 @@ fun UpdateDialog(
         title = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = if (actionLabel == "Install") "Ready to Install" else "Update Available",
+                    text = if (readyToInstall) {
+                        stringResource(R.string.update_dialog_title_install)
+                    } else {
+                        stringResource(R.string.update_dialog_title_available)
+                    },
                     style = MaterialTheme.typography.titleLarge
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -475,18 +523,25 @@ fun UpdateDialog(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                if (actionLabel != "Install") {
+                if (!readyToInstall) {
                     // Show version info for update available state
-                    InfoRow(label = "Current Version", value = currentVersion)
-                    InfoRow(label = "Latest Version", value = release.tagName.removePrefix("v"))
-                    InfoRow(label = "Release Date", value = formattedDate)
-                    InfoRow(label = "Size", value = formatFileSize(downloadSize))
+                    InfoRow(label = stringResource(R.string.update_dialog_current_version), value = currentVersion)
+                    InfoRow(label = stringResource(R.string.update_dialog_latest_version), value = release.tagName.removePrefix("v"))
+                    InfoRow(label = stringResource(R.string.update_dialog_release_date), value = formattedDate)
+                    InfoRow(
+                        label = stringResource(R.string.update_dialog_size),
+                        value = if (downloadSize > 0) {
+                            formatFileSize(downloadSize)
+                        } else {
+                            stringResource(R.string.update_dialog_unknown_size)
+                        },
+                    )
                 }
 
                 if (release.body.isNotBlank()) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "What's New",
+                        text = stringResource(R.string.update_dialog_whats_new),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -504,36 +559,48 @@ fun UpdateDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Downloading...", style = MaterialTheme.typography.bodySmall)
-                        Text(text = "${progress.toInt()}%", style = MaterialTheme.typography.bodySmall)
+                        Text(text = stringResource(R.string.update_dialog_downloading), style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            text = if (progress >= 0) "${progress.toInt()}%" else "—",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { if (progress >= 0) progress / 100f else 0f },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    )
+                    if (progress >= 0) {
+                        LinearProgressIndicator(
+                            progress = { progress / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        )
+                    } else {
+                        // Content length unknown → indeterminate bar instead of a frozen 0%
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
             if (!isDownloading) {
                 Button(onClick = onAction) {
-                    Text(if (actionLabel == "Install") "Install" else "Download")
+                    Text(stringResource(if (readyToInstall) R.string.update_dialog_install else R.string.update_dialog_download))
                 }
             }
         },
         dismissButton = {
             if (!isDownloading) {
                 Row {
-                    if (actionLabel != "Install") {
+                    if (!readyToInstall) {
                         TextButton(onClick = onIgnore) {
-                            Text("Ignore")
+                            Text(stringResource(R.string.update_dialog_ignore))
                         }
                     }
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.update_dialog_cancel))
                     }
                 }
             }
@@ -563,7 +630,7 @@ private fun InfoRow(label: String, value: String) {
 }
 
 private fun formatFileSize(size: Long): String {
-    if (size <= 0) return "Unknown size"
+    if (size <= 0) return ""
     val units = arrayOf("B", "KB", "MB", "GB", "TB")
     val digitGroups = (Math.log10(size.toDouble()) / Math.log10(1024.0)).toInt()
     return String.format("%.1f %s", size / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
