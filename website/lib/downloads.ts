@@ -1,4 +1,4 @@
-import { Building2, Download, Github } from "lucide-react";
+import { Building2, Github } from "lucide-react";
 
 export interface DownloadOption {
   id: string;
@@ -17,7 +17,7 @@ export const downloads: DownloadOption[] = [
     description: "Download the latest stable version directly from GitHub.",
     icon: Github,
     buttonText: "Download APK",
-    href: "https://github.com/marlboro-advance/mpvEx/releases",
+    href: "https://github.com/sumanroy-devs/video/releases",
   },
   {
     id: "preview",
@@ -25,14 +25,6 @@ export const downloads: DownloadOption[] = [
     description: "Test the latest features and improvements in development.",
     icon: Building2,
     buttonText: "View Pre-releases",
-    href: "https://github.com/marlboro-advance/mpvEx/releases",
-  },
-  {
-    id: "izzyondroid",
-    title: "IzzyOnDroid",
-    description: "Install and update automatically via IzzyOnDroid F-Droid client.",
-    icon: Download,
-    buttonText: "View Repository",
-    href: "https://apt.izzysoft.de/fdroid/index/apk/com.moe.mpvextended",
+    href: "https://github.com/sumanroy-devs/video/releases",
   },
 ];

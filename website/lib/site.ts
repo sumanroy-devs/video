@@ -20,15 +20,14 @@ export const siteConfig = {
     apple: "/apple-icon.png",
   },
   links: {
-    github: "https://github.com/marlboro-advance/mpvEx",
-    releases: "https://github.com/marlboro-advance/mpvEx/releases",
-    latestRelease: "https://github.com/marlboro-advance/mpvEx/releases/latest",
-    izzyOnAndroid: "https://apt.izzysoft.de/packages/app.marlboroadvance.mpvex",
-    contributors: "https://github.com/marlboro-advance/mpvEx/graphs/contributors",
+    github: "https://github.com/sumanroy-devs/video",
+    releases: "https://github.com/sumanroy-devs/video/releases",
+    latestRelease: "https://github.com/sumanroy-devs/video/releases/latest",
+    contributors: "https://github.com/sumanroy-devs/video/graphs/contributors",
   },
   author: {
-    name: "marlboro-advance",
-    url: "https://github.com/marlboro-advance",
+    name: "sumanroy-devs",
+    url: "https://github.com/sumanroy-devs",
   },
 } as const;
 
