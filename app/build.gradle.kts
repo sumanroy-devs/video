@@ -31,6 +31,8 @@ android {
 
     // GitHub is the single distribution channel (old "standard" flavor flags).
     buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "true")
+    // Only this package can update in place: .debug/.preview suffixes install as separate apps.
+    buildConfigField("String", "RELEASE_APPLICATION_ID", "\"com.sroy.video\"")
     buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
   }
 
@@ -76,13 +78,6 @@ android {
       ndk {
         debugSymbolLevel = "none"
       }
-    }
-
-    create("preview") {
-      initWith(getByName("release"))
-      signingConfig = null
-      applicationIdSuffix = ".preview"
-      versionNameSuffix = "-${getCommitCount()}"
     }
 
     named("debug") {
